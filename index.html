@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>師資培育中心 題庫系統</title>
+  <style>
+    /* =========================================
+       CSS 樣式區塊 (保持不變)
+       ========================================= */
+    :root {
+      --primary-color: #4a90e2;
+      --success-color: #2ecc71;
+      --error-color: #e74c3c;
+      --bg-color: #f5f7fa;
+      --card-bg: #ffffff;
+      --text-main: #333333;
+    }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, "PingFang TC", "微軟正黑體", sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .quiz-container {
+      background-color: var(--card-bg);
+      width: 100%;
+      max-width: 800px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .quiz-header {
+      border-bottom: 2px solid #eee;
+      padding-bottom: 15px;
+      text-align: center;
+    }
+
+    .quiz-header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--primary-color);
+    }
+
+    .question-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .year-tag {
+      align-self: flex-start;
+      background-color: #eef5fc;
+      color: var(--primary-color);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: bold;
+      border: 1px solid #c5d9ed;
+    }
+
+    .question-text {
+      font-size: 1.2rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .options-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .option-label {
+      display: flex;
+      align-items: center;
+      padding: 15px;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 1.1rem;
+    }
+
+    .option-label:hover {
+      background-color: #f8f9fa;
+      border-color: #c5d9ed;
+    }
+
+    .option-input:checked + .option-text {
+      color: var(--primary-color);
+      font-weight: bold;
+    }
+    
+    .option-label:has(.option-input:checked) {
+      border-color: var(--primary-color);
+      background-color: #eef5fc;
+    }
+
+    .option-input {
+      margin-right: 15px;
+      transform: scale(1.2);
+    }
+
+    .control-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .submit-btn {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px 40px;
+      font-size: 1.2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .submit-btn:hover { background-color: #357abd; }
+    .submit-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+
+    .feedback-message {
+      font-size: 1.2rem;
+      font-weight: bold;
+      min-height: 28px;
+    }
+
+    .feedback-success { color: var(--success-color); }
+    .feedback-error { color: var(--error-color); }
+
+    /* 篩選按鈕樣式 */
+    .filter-group {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .filter-btn {
+      padding: 8px 20px;
+      border: 1px solid var(--primary-color);
+      background-color: white;
+      color: var(--primary-color);
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn.active { background-color: var(--primary-color); color: white; }
+  </style>
+</head>
+<body>
+
+  <main class="quiz-container">
+    <header class="quiz-header">
+      <h1>歷屆教育學程招生甄選題庫練習</h1>
+    </header>
+
+    <div class="filter-group">
+      <button id="filterAll" class="filter-btn active">全部</button>
+      <button id="filterNKNU" class="filter-btn">高師大</button>
+    </div>
+
+    <section id="quizContent" class="question-section">
+      <div id="yearTag" class="year-tag">載入中...</div>
+      <div id="questionText" class="question-text"></div>
+      <div id="optionsContainer" class="options-grid"></div>
+    </section>
+
+    <section class="control-section">
+      <button id="submitBtn" class="submit-btn">確認</button>
+      <div id="feedbackText" class="feedback-message"></div>
+    </section>
+  </main>
+
+  <!-- 引入靜態題庫 JS 檔案 (取代 fetch，避免本機端 CORS 錯誤) -->
+  <script src="questions.js"></script>
+
+  <script>
+    /* =========================================
+       JavaScript 邏輯區塊 (Vanilla JS, ES6+)
+       ========================================= */
+    let currentQuestionData = null; // 當前題目資料
+    let filteredQuestions = [];    // 篩選後的題庫
+
+    // DOM 元素選取
+    const yearTagEl = document.getElementById('yearTag');
+    const questionTextEl = document.getElementById('questionText');
+    const optionsContainerEl = document.getElementById('optionsContainer');
+    const filterAllBtn = document.getElementById('filterAll');
+    const filterNKNUBtn = document.getElementById('filterNKNU');
+    const submitBtnEl = document.getElementById('submitBtn');
+    const feedbackTextEl = document.getElementById('feedbackText');
+
+    /**
+     * 初始化測驗系統
+     */
+    const initQuiz = () => {
+      // 1. DOM Null Check
+      if (!yearTagEl || !questionTextEl || !optionsContainerEl || !submitBtnEl || !feedbackTextEl) {
+        console.error("DOM 元素選取失敗，請檢查 HTML 結構");
+        return;
+      }
+
+      // 2. 檢查題庫是否成功從 questions.js 載入
+      if (typeof quizQuestionBank === 'undefined' || !Array.isArray(quizQuestionBank) || quizQuestionBank.length === 0) {
+        questionTextEl.textContent = "無法載入題庫，請確認 questions.js 檔案是否存在且資料格式正確。";
+        questionTextEl.style.color = "var(--error-color)";
+        submitBtnEl.style.display = "none";
+        yearTagEl.style.display = "none";
+        return;
+      }
+
+      // 綁定確認按鈕事件
+      submitBtnEl.addEventListener('click', handleAnswerSubmit);
+
+      // 綁定篩選按鈕事件
+      filterAllBtn.addEventListener('click', () => updateFilter(''));
+      filterNKNUBtn.addEventListener('click', () => updateFilter('高師大'));
+      
+      // 載入第一題
+      loadRandomQuestion();
+    };
+
+    /**
+     * 隨機抽取題目並渲染
+     */
+    const loadRandomQuestion = () => {
+      const pool = filteredQuestions.length > 0 ? filteredQuestions : quizQuestionBank;
+      
+      if (pool.length === 0) {
+        questionTextEl.textContent = "此分類下目前沒有題目。";
+        return;
+      }
+
+      // 防止連續抽到同一題
+      let randomIndex;
+      do {
+        randomIndex = Math.floor(Math.random() * pool.length);
+      } while (
+        pool.length > 1 && 
+        currentQuestionData && 
+        pool[randomIndex].id === currentQuestionData.id
+      );
+
+      currentQuestionData = pool[randomIndex];
+      renderQuestion(currentQuestionData);
+    };
+
+    /**
+     * 更新篩選條件
+     */
+    const updateFilter = (keyword) => {
+      // 切換按鈕樣式
+      filterAllBtn.classList.toggle('active', keyword === '');
+      filterNKNUBtn.classList.toggle('active', keyword === '高師大');
+
+      // 執行過濾
+      if (keyword === '') {
+        filteredQuestions = [...quizQuestionBank];
+      } else {
+        filteredQuestions = quizQuestionBank.filter(q => q.year && q.year.includes(keyword));
+      }
+
+      // 重置當前題目並重新載入
+      loadRandomQuestion();
+    };
+
+    /**
+     * 渲染題目與選項 DOM
+     */
+    const renderQuestion = (data) => {
+      // 渲染年份與題目文字
+      yearTagEl.textContent = data.year || '未標註年份';
+      questionTextEl.textContent = data.question;
+
+      // 清空狀態
+      optionsContainerEl.innerHTML = '';
+      feedbackTextEl.textContent = '';
+      feedbackTextEl.className = 'feedback-message';
+      submitBtnEl.disabled = false;
+
+      // 動態生成選項
+      Object.entries(data.options).forEach(([key, value]) => {
+        const labelEl = document.createElement('label');
+        labelEl.className = 'option-label';
+
+        const inputEl = document.createElement('input');
+        inputEl.type = 'radio';
+        inputEl.name = 'quizOption';
+        inputEl.value = key;
+        inputEl.className = 'option-input';
+
+        const textSpanEl = document.createElement('span');
+        textSpanEl.className = 'option-text';
+        textSpanEl.textContent = `(${key}) ${value}`;
+
+        labelEl.appendChild(inputEl);
+        labelEl.appendChild(textSpanEl);
+        optionsContainerEl.appendChild(labelEl);
+      });
+    };
+
+    /**
+     * 處理答案送出
+     */
+    const handleAnswerSubmit = () => {
+      // DOM 狀態檢查
+      const selectedOptionEl = document.querySelector('input[name="quizOption"]:checked');
+
+      if (!selectedOptionEl) {
+        feedbackTextEl.textContent = '請先選擇一個選項！';
+        feedbackTextEl.className = 'feedback-message feedback-error';
+        return;
+      }
+
+      const selectedAnswer = selectedOptionEl.value;
+
+      if (selectedAnswer === currentQuestionData.correctAnswer) {
+        // 答對處理
+        feedbackTextEl.textContent = '🎉 回答正確！即將載入下一題...';
+        feedbackTextEl.className = 'feedback-message feedback-success';
+        submitBtnEl.disabled = true;
+
+        setTimeout(() => {
+          loadRandomQuestion();
+        }, 1500);
+      } else {
+        // 答錯處理
+        feedbackTextEl.textContent = '❌ 回答錯誤，請再試一次！';
+        feedbackTextEl.className = 'feedback-message feedback-error';
+      }
+    };
+
+    // DOM 載入後啟動程式
+    document.addEventListener('DOMContentLoaded', initQuiz);
+  </script>
+</body>
+</html>
