@@ -173,6 +173,7 @@
     <div class="filter-group">
       <button id="filterAll" class="filter-btn active">全部</button>
       <button id="filterNKNU" class="filter-btn">高師大</button>
+      <button id="filterUTaipei" class="filter-btn">北市大</button>
     </div>
 
     <section id="quizContent" class="question-section">
@@ -201,8 +202,9 @@
     const yearTagEl = document.getElementById('yearTag');
     const questionTextEl = document.getElementById('questionText');
     const optionsContainerEl = document.getElementById('optionsContainer');
-    const filterAllBtn = document.getElementById('filterAll');
+        const filterAllBtn = document.getElementById('filterAll');
     const filterNKNUBtn = document.getElementById('filterNKNU');
+    const filterUTaipeiBtn = document.getElementById('filterUTaipei');
     const submitBtnEl = document.getElementById('submitBtn');
     const feedbackTextEl = document.getElementById('feedbackText');
 
@@ -228,9 +230,10 @@
       // 綁定確認按鈕事件
       submitBtnEl.addEventListener('click', handleAnswerSubmit);
 
-      // 綁定篩選按鈕事件
+            // 綁定篩選按鈕事件
       filterAllBtn.addEventListener('click', () => updateFilter(''));
       filterNKNUBtn.addEventListener('click', () => updateFilter('高師大'));
+      filterUTaipeiBtn.addEventListener('click', () => updateFilter('北市大'));
       
       // 載入第一題
       loadRandomQuestion();
@@ -266,8 +269,9 @@
      */
     const updateFilter = (keyword) => {
       // 切換按鈕樣式
-      filterAllBtn.classList.toggle('active', keyword === '');
+            filterAllBtn.classList.toggle('active', keyword === '');
       filterNKNUBtn.classList.toggle('active', keyword === '高師大');
+      filterUTaipeiBtn.classList.toggle('active', keyword === '北市大');
 
       // 執行過濾
       if (keyword === '') {
