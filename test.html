@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模擬試卷</title>
+    <script src="questions.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .page-wrapper {
+            max-width: 920px;
+            width: 100%;
+        }
+
+        /* 頂部卡片 header */
+        .exam-header {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .exam-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #4a90e2, #67b8f7, #4a90e2);
+        }
+
+        .exam-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #1a202c;
+            letter-spacing: 1px;
+        }
+
+        .exam-header .subtitle {
+            margin-top: 8px;
+            color: #718096;
+            font-size: 1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .exam-header .badge {
+            display: inline-block;
+            margin-top: 12px;
+            background: #ebf8ff;
+            color: #2b6cb0;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* 題號進度條 */
+        .progress-bar-wrapper {
+            background: white;
+            border-radius: 16px;
+            padding: 18px 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .progress-bar-wrapper .label {
+            font-size: 0.9rem;
+            color: #4a5568;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .progress-track {
+            flex: 1;
+            min-width: 120px;
+            height: 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4a90e2, #63b3ed);
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #4a5568;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        /* 題目卡片 */
+        .question-block {
+            background: white;
+            border-radius: 16px;
+            padding: 24px 28px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+            border: 1px solid transparent;
+            transition: box-shadow 0.25s ease;
+        }
+
+        .question-block:hover {
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.09);
+        }
+
+        .question-block.user-wrong {
+            border-color: #fc8181;
+            background: #fff5f5;
+        }
+
+        .question-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2d3748;
+            line-height: 1.7;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        label.option-label {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #fafafa;
+        }
+
+        label.option-label:hover {
+            border-color: #90c4f9;
+            background: #f7fbff;
+        }
+
+        label.option-label:has(input[type="radio"]:checked) {
+            border-color: #4a90e2;
+            background: #ebf8ff;
+            box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+        }
+
+        input[type="radio"] {
+            margin-right: 12px;
+            margin-top: 2px;
+            transform: scale(1.15);
+            accent-color: #4a90e2;
+            flex-shrink: 0;
+        }
+
+        label.option-label span {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #2d3748;
+        }
+
+        /* 訂正區 */
+        .correct-answer {
+            margin-top: 14px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            display: none;
+            border-left: 5px solid #48bb78;
+            background: #f0fff4;
+            color: #22543d;
+        }
+
+        .correct-answer.wrong-answer {
+            border-left-color: #fc8181;
+            background: #fff5f5;
+            color: #9b2c2c;
+        }
+
+        /* 按鈕區 */
+        .button-container {
+            text-align: center;
+            margin: 30px 0 20px;
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 14px 40px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            font-family: inherit;
+        }
+
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #357abd;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(74, 144, 226, 0.35);
+        }
+
+        .btn-primary:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+            transform: translateY(-2px);
+        }
+
+        /* 結果面板 */
+        .result-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid #4a90e2;
+        }
+
+        .result-panel h2 {
+            font-size: 1.5rem;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .score-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ebf8ff, #bee3f8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            border: 4px solid #90c4f9;
+        }
+
+        .score {
+            font-size: 2.4rem;
+            font-weight: 800;
+            color: #2b6cb0;
+        }
+
+        .score-detail {
+            color: #4a5568;
+            font-size: 1.1rem;
+            margin-top: 8px;
+        }
+
+        .score-detail span {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        /* 回到首頁按鈕 */
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 24px;
+            color: #4a90e2;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 1rem;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: #2b6cb0;
+            text-decoration: underline;
+        }
+
+        /* 響應式 */
+        @media (max-width: 640px) {
+            body {
+                padding: 16px 10px;
+            }
+
+            .exam-header {
+                padding: 20px 16px;
+            }
+
+            .exam-header h1 {
+                font-size: 1.4rem;
+            }
+
+            .question-block {
+                padding: 18px 16px;
+            }
+
+            .question-title {
+                font-size: 1rem;
+            }
+
+            label.option-label {
+                padding: 10px 12px;
+            }
+
+            .btn {
+                padding: 12px 28px;
+                font-size: 1rem;
+                width: 100%;
+            }
+
+            .button-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .progress-bar-wrapper {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-wrapper">
+
+        <!-- 頭部 -->
+        <div class="exam-header">
+            <h1>模擬試卷</h1>
+            <div class="subtitle"> 每題 2 分 · 滿分 100 分</div>
+            <div class="badge"> 共 50 題選擇題</div>
+        </div>
+
+        <!-- 答題進度條 -->
+        <div class="progress-bar-wrapper" id="progressBar">
+            <span class="label"> 答題進度</span>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <span class="progress-text" id="progressText">0 / 50</span>
+        </div>
+
+        <!-- 題目區 -->
+        <div id="questionsContainer"></div>
+
+        <!-- 按鈕 -->
+        <div class="button-container">
+            <button id="submitBtn" class="btn btn-primary">📨 提交答案</button>
+            <button id="resetBtn" class="btn btn-secondary">🔄 重新出題</button>
+        </div>
+
+        <!-- 結果面板 -->
+        <div class="result-panel" id="resultPanel">
+            <h2>📊 測驗結果</h2>
+            <div class="score-circle">
+                <div class="score" id="scoreDisplay">0 / 100</div>
+            </div>
+            <div class="score-detail" id="detailDisplay"></div>
+            <a class="back-link" href="index.html">← 返回題庫練習首頁</a>
+        </div>
+
+    </div>
+
+    <script>
+        (function() {
+            let examStarted = false;
+            let submitted = false;
+
+            // --- 防刷新 ---
+            window.addEventListener('beforeunload', function(e) {
+                if (examStarted && !submitted) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                    return '';
+                }
+            });
+
+            // --- 隨機選題 ---
+            let selectedQuestions = [];
+            const TOTAL = 50;
+            const POINTS = 2;
+
+            function shuffle(arr) {
+                const a = [...arr];
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [a[i], a[j]] = [a[j], a[i]];
+                }
+                return a;
+            }
+
+            function pickQuestions() {
+                if (typeof quizQuestionBank === 'undefined' || !quizQuestionBank.length) {
+                    alert('題庫載入失敗！請確認 questions.js 存在');
+                    return [];
+                }
+                return shuffle(quizQuestionBank).slice(0, TOTAL);
+            }
+
+            // --- 更新進度條 ---
+            function updateProgress() {
+                let answered = 0;
+                selectedQuestions.forEach((_, idx) => {
+                    const sel = document.querySelector('input[name="q' + idx + '"]:checked');
+                    if (sel) answered++;
+                });
+                const pct = Math.round((answered / TOTAL) * 100);
+                document.getElementById('progressFill').style.width = pct + '%';
+                document.getElementById('progressText').textContent = answered + ' / ' + TOTAL;
+            }
+
+            // --- 渲染題目 ---
+            function renderQuestions() {
+                const container = document.getElementById('questionsContainer');
+                container.innerHTML = '';
+                if (!selectedQuestions.length) {
+                    container.innerHTML = '<p style="color:red; text-align:center; padding:40px;">題目載入失敗</p>';
+                    return;
+                }
+                selectedQuestions.forEach((q, idx) => {
+                    const block = document.createElement('div');
+                    block.className = 'question-block';
+                    block.id = 'qb-' + idx;
+
+                    const title = document.createElement('div');
+                    title.className = 'question-title';
+                    title.textContent = (idx + 1) + '. ' + q.question;
+                    block.appendChild(title);
+
+                    const optsDiv = document.createElement('div');
+                    optsDiv.className = 'options';
+
+                    ['A','B','C','D'].forEach(k => {
+                        if (q.options && q.options[k]) {
+                            const lbl = document.createElement('label');
+                            lbl.className = 'option-label';
+                            const radio = document.createElement('input');
+                            radio.type = 'radio';
+                            radio.name = 'q' + idx;
+                            radio.value = k;
+                            radio.addEventListener('change', updateProgress);
+                            lbl.appendChild(radio);
+                            const span = document.createElement('span');
+                            span.textContent = k + '. ' + q.options[k];
+                            lbl.appendChild(span);
+                            optsDiv.appendChild(lbl);
+                        }
+                    });
+                    block.appendChild(optsDiv);
+
+                    const correctDiv = document.createElement('div');
+                    correctDiv.className = 'correct-answer';
+                    correctDiv.id = 'cor-' + idx;
+                    block.appendChild(correctDiv);
+
+                    container.appendChild(block);
+                });
+                examStarted = true;
+                updateProgress();
+            }
+
+            // --- 評分與顯示 ---
+            function handleSubmit() {
+                const unanswered = [];
+                selectedQuestions.forEach((_, i) => {
+                    if (!document.querySelector('input[name="q' + i + '"]:checked')) unanswered.push(i+1);
+                });
+                if (unanswered.length) {
+                    if (!confirm('尚有 ' + unanswered.length + ' 題未作答（題號：' + unanswered.slice(0,5).join(',') + (unanswered.length>5 ? '...' : '') + '），仍要提交嗎？')) return;
+                } else {
+                    if (!confirm('確定提交答案嗎？提交後將無法修改。')) return;
+                }
+
+                let correctCount = 0;
+                selectedQuestions.forEach((q, i) => {
+                    const sel = document.querySelector('input[name="q' + i + '"]:checked');
+                    const ua = sel ? sel.value : null;
+                    const ok = (ua === q.correctAnswer);
+                    if (ok) correctCount++;
+
+                    const div = document.getElementById('cor-' + i);
+                    div.style.display = 'block';
+                    if (ok) {
+                        div.className = 'correct-answer';
+                        div.innerHTML = '✅ 您的答案：<strong>' + ua + '</strong>（正確）';
+                    } else {
+                        div.className = 'correct-answer wrong-answer';
+                        const userText = ua ? ua + '. ' + (q.options[ua]||'') : '未作答';
+                        const ansText = q.correctAnswer + '. ' + (q.options[q.correctAnswer]||'');
+                        div.innerHTML = '❌ 您的答案：' + userText + '<br>✔ 正確答案：<strong>' + ansText + '</strong>';
+                        document.getElementById('qb-' + i).classList.add('user-wrong');
+                    }
+                });
+
+                const score = correctCount * POINTS;
+                document.getElementById('scoreDisplay').textContent = score + ' / 100';
+                document.getElementById('detailDisplay').innerHTML = '答對 <span>' + correctCount + '</span> / ' + TOTAL + ' 題（每題 2 分）';
+                document.getElementById('resultPanel').style.display = 'block';
+                document.querySelectorAll('input[type="radio"]').forEach(r => r.disabled = true);
+                document.getElementById('submitBtn').disabled = true;
+                submitted = true;
+                document.getElementById('resultPanel').scrollIntoView({ behavior: 'smooth' });
+            }
+
+            function resetExam() {
+                if (examStarted && !submitted && !confirm('確定重新出題？目前作答進度將會遺失。')) return;
+                submitted = false;
+                document.getElementById('submitBtn').disabled = false;
+                document.getElementById('resultPanel').style.display = 'none';
+                selectedQuestions = pickQuestions();
+                renderQuestions();
+            }
+
+            document.getElementById('submitBtn').addEventListener('click', handleSubmit);
+            document.getElementById('resetBtn').addEventListener('click', resetExam);
+
+            // 初始
+            if (typeof quizQuestionBank !== 'undefined' && quizQuestionBank.length >= TOTAL) {
+                selectedQuestions = pickQuestions();
+                renderQuestions();
+            } else if (typeof quizQuestionBank !== 'undefined') {
+                document.getElementById('questionsContainer').innerHTML = '<p style="color:red; text-align:center; padding:40px;">題庫僅 ' + quizQuestionBank.length + ' 題，無法生成 50 題試卷。</p>';
+            } else {
+                document.getElementById('questionsContainer').innerHTML = '<p style="color:red; text-align:center; padding:40px;">載入題庫失敗</p>';
+            }
+        })();
+    </script>
+</body>
+</html>
